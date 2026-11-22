@@ -92,10 +92,43 @@ python3 -m busagent chat
 
 ## 架构图
 
-![busagent C4 架构图](c4-architecture-preview.png)
+C4 分四层 + 状态机 + 代码级，每张单独点开看。交互版（缩放不错位）见 [c4-architecture.html](c4-architecture.html)。
 
-> 交互版（缩放不错位，含 C1 上下文 / C2 容器 / C3-A 会话层 / C3-B 工作流层 / 状态机 / L4）：[c4-architecture.html](c4-architecture.html)
-> 高清图：[c4-architecture.png](c4-architecture.png) · 读码路线：[READING.md](READING.md) · 范围与实验：[MVP.md](MVP.md)
+### C1 · 系统上下文
+
+![C1 系统上下文](assets/c4-c1-context.png)
+
+用户、业务 Agent、LLM、业务后端、审计证据：先看边界。
+
+### C2 · 容器
+
+![C2 容器](assets/c4-c2-containers.png)
+
+`SessionLoop` 选目标，`AgentLoop` 跑循环，`Gate` 管副作用，`GoalVerifier` 判完成。
+
+### C3-A · 会话层组件
+
+![C3-A 会话层](assets/c4-c3a-session.png)
+
+一条消息 → 一个动作（reply / open / advance / status / ask），不做话题分类。
+
+### C3-B · 工作流层组件
+
+![C3-B 工作流层](assets/c4-c3b-workflow.png)
+
+左边控制流，右边五道检查；任何一道不过都不进入执行。
+
+### 状态机
+
+![工作流状态机](assets/c4-state-machine.png)
+
+迁移集中在 `states.py`，终态不可重启。
+
+### L4 · 代码级
+
+![L4 代码级](assets/c4-l4-code.png)
+
+外层 `match action.kind`，内层 `dispatch` 五道检查。
 
 ## 核心机制
 
@@ -159,7 +192,7 @@ tests/           36 条测试
 | [MVP.md](MVP.md) | 学习型 MVP 的范围、10 个实验、5 个自测问题 |
 | [READING.md](READING.md) | 20 分钟读码路线 + 依赖顺序 |
 | [c4-architecture.html](c4-architecture.html) | C4 交互架构图（C1/C2/C3-A/C3-B/STATE/L4） |
-| [c4-architecture-preview.png](c4-architecture-preview.png) | README 用预览图 |
+| [assets/](assets/) | README 分图、banner 源文件 |
 
 ## 演示场景（`demo`）
 
