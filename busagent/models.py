@@ -172,7 +172,7 @@ class OpenAICompatibleModel(BaseModel):
 
     @classmethod
     def from_env(cls) -> "OpenAICompatibleModel":
-        base = os.environ.get("BUSAGENT_BASE_URL", "http://127.0.0.1:8788/v1")
+        base = os.environ.get("BUSAGENT_BASE_URL", "http://localhost:8788/v1")
         key = os.environ.get("BUSAGENT_API_KEY", "sk-local")
         model = os.environ.get("BUSAGENT_MODEL", "deepseek-v4.1-flash")
         return cls(base, key, model)
