@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1792px;height:1024px;overflow:hidden;background:#050a14}
+  .stage{position:relative;width:1792px;height:1024px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Helvetica Neue",Arial,sans-serif;color:#eaf2ff}
+  .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .shade{position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(4,9,18,.96) 0%,rgba(4,9,18,.86) 34%,rgba(4,9,18,.45) 55%,rgba(4,9,18,.05) 72%,transparent 82%),
+    linear-gradient(0deg,rgba(4,9,18,.55),transparent 38%)}
+  .content{position:relative;z-index:2;padding:104px 0 0 112px;width:900px}
+  .eyebrow{font:600 15px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.28em;color:#5eead4;text-transform:uppercase;display:flex;align-items:center;gap:14px}
+  .eyebrow::before{content:"";width:38px;height:1px;background:linear-gradient(90deg,#5eead4,transparent)}
+  h1{margin-top:34px;font-size:74px;line-height:1.14;font-weight:700;letter-spacing:-.02em;
+     background:linear-gradient(100deg,#ffffff 10%,#d8e8ff 58%,#8fb4ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1 .thin{display:block;font-size:52px;font-weight:600;letter-spacing:0;margin-top:8px;color:#bcd2f5;background:none;-webkit-text-fill-color:#bcd2f5}
+  .chain{margin-top:34px;font:500 18px/1.7 "SF Mono",ui-monospace,Menlo,monospace;color:#8fb4d8;letter-spacing:.01em}
+  .chain b{color:#5eead4;font-weight:600}
+  .tags{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+  .tag{font-size:15px;letter-spacing:.04em;color:#cfe0ff;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);padding:9px 15px;border-radius:999px;backdrop-filter:blur(6px)}
+  .foot{position:absolute;left:112px;bottom:86px;z-index:2;display:flex;align-items:center;gap:16px;
+        font:500 14px/1 "SF Mono",ui-monospace,Menlo,monospace;color:#7f96ba;letter-spacing:.06em}
+  .foot .dot{width:6px;height:6px;border-radius:50%;background:#5eead4;box-shadow:0 0 14px #5eead4}
+  .brand{position:absolute;right:96px;bottom:86px;z-index:2;font:600 13px/1 "SF Mono",ui-monospace,Menlo,monospace;
+         letter-spacing:.3em;color:rgba(190,215,245,.55)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <img class="bg" src="banner-bg.png" alt="">
+  <div class="shade"></div>
+  <div class="content">
+    <div class="eyebrow">ONE-MINI-AGENT · LEARNING MVP</div>
+    <h1>学业务 Agent
+      <span class="thin">从一条最小闭环开始</span>
+    </h1>
+    <div class="chain">
+      会话 → 流程 / 计划 → <b>循环</b> → <b>闸门</b> → <b>验收</b>
+    </div>
+    <div class="tags">
+      <span class="tag">交错循环</span>
+      <span class="tag">写闸门</span>
+      <span class="tag">目标验收</span>
+      <span class="tag">状态机</span>
+    </div>
+  </div>
+  <div class="foot"><span class="dot"></span>Python 3.10+ · 36 tests · 零第三方依赖</div>
+  <div class="brand">BUSINESS AGENT / 2026</div>
+</div>
+</body>
+</html>

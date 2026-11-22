@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>busagent · C4 架构图</title>
+<style>
+  :root{
+    --bg:#070b14; --ink:#e9eefb; --muted:#94a6c6; --dim:#6b7d9c;
+    --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.06);
+    --card:rgba(255,255,255,.045);
+    --teal:#5eead4; --blue:#7aa2ff; --amber:#f5c66b; --violet:#b79cff;
+    --red:#ff7a7a; --green:#86efac;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;letter-spacing:.01em;
+    background:
+      radial-gradient(900px 520px at 8% -6%, rgba(45,212,191,.13), transparent 62%),
+      radial-gradient(820px 480px at 94% 4%, rgba(99,102,241,.15), transparent 64%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .wrap{max-width:1400px;margin:0 auto;padding:52px 40px 80px}
+
+  .eyebrow{font:600 10.5px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.22em;
+    color:var(--teal);text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .eyebrow::before{content:"";width:26px;height:1px;background:linear-gradient(90deg,var(--teal),transparent)}
+  h1{margin:0 0 12px;font-size:32px;line-height:1.28;font-weight:650;letter-spacing:-.01em;
+    background:linear-gradient(100deg,#fff,#cfe0ff 50%,#8fb4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{max-width:900px;margin:0;color:var(--muted);font-size:14px;line-height:1.85}
+  .lead b{color:#dbe6fb;font-weight:600}
+
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin:24px 0 0;padding:12px 18px;
+    border:1px solid var(--line-soft);border-radius:14px;background:rgba(255,255,255,.025);font-size:12px;color:var(--muted)}
+  .legend .item{display:flex;align-items:center;gap:8px}
+  .sw{width:10px;height:10px;border-radius:3px;box-shadow:0 0 10px currentColor}
+  .sw.person{background:var(--violet);color:var(--violet)}
+  .sw.system{background:var(--amber);color:var(--amber)}
+  .sw.container{background:var(--blue);color:var(--blue)}
+  .sw.component{background:var(--teal);color:var(--teal)}
+  .sw.data{background:#8b9bb8;color:#8b9bb8}
+
+  .level{margin-top:46px}
+  .level-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+  .level-head h2{margin:0;font-size:18px;font-weight:640;letter-spacing:-.005em}
+  .level-head .tag{font:600 10px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.14em;color:var(--teal);
+    border:1px solid rgba(94,234,212,.3);background:rgba(94,234,212,.07);padding:4px 8px;border-radius:6px}
+  .level-head .sub{font-size:12px;color:var(--dim)}
+  .level-note{margin:0 0 6px;font-size:12px;color:var(--dim);line-height:1.7}
+
+  .diagram{position:relative;margin-top:10px;border:1px solid var(--line-soft);border-radius:18px;
+    background:linear-gradient(160deg,rgba(255,255,255,.028),rgba(255,255,255,.008));
+    overflow:hidden}
+  .diagram .grid{position:absolute;inset:0;opacity:.35;
+    background-image:radial-gradient(rgba(255,255,255,.12) 1px,transparent 1px);
+    background-size:26px 26px;mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 85%)}
+  .diagram svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .node{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);
+    width:var(--w,206px);padding:11px 13px 10px;border-radius:13px;
+    border:1px solid var(--line);background:linear-gradient(168deg,rgba(255,255,255,.06),rgba(255,255,255,.018));
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 14px 40px -30px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.05) inset;
+    z-index:2}
+  .node .kind{font:600 8.5px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.16em;color:var(--dim);margin-bottom:5px}
+  .node .name{font-size:13.5px;font-weight:640;line-height:1.35;color:#eaf0fc}
+  .node .tech{font:500 10px/1.4 "SF Mono",ui-monospace,Menlo,monospace;color:var(--dim);margin-top:3px}
+  .node .duty{font-size:10.8px;line-height:1.55;color:var(--muted);margin-top:5px}
+  .node.person{border-color:rgba(183,156,255,.35);background:linear-gradient(168deg,rgba(183,156,255,.12),rgba(255,255,255,.02))}
+  .node.system{border-color:rgba(245,198,107,.32);background:linear-gradient(168deg,rgba(245,198,107,.1),rgba(255,255,255,.02))}
+  .node.container{border-color:rgba(122,162,255,.3)}
+  .node.component{border-color:rgba(94,234,212,.28)}
+  .node.data{border-color:rgba(139,155,184,.3)}
+  .node.primary{box-shadow:0 0 0 1px rgba(94,234,212,.18),0 24px 60px -38px rgba(45,212,191,.65)}
+  .node.primary .name{font-size:15px}
+  .node .badge{position:absolute;top:10px;right:10px;font:700 8.5px/1 "SF Mono",ui-monospace,Menlo,monospace;
+    letter-spacing:.1em;padding:3px 6px;border-radius:5px;color:#06231f;background:linear-gradient(120deg,#7ff3dd,#3fd6bd)}
+
+  .panel{position:absolute;border:1px dashed rgba(255,255,255,.12);border-radius:16px;z-index:1;
+    background:rgba(255,255,255,.012)}
+  .panel .ph{position:absolute;top:10px;left:14px;font:600 10px/1 "SF Mono",ui-monospace,Menlo,monospace;
+    letter-spacing:.16em;color:var(--dim)}
+
+  .edges path{fill:none;stroke:rgba(122,162,255,.5);stroke-width:1.4}
+  .edges path.write{stroke:rgba(245,198,107,.65)}
+  .edges path.flow{stroke:rgba(94,234,212,.55)}
+  .edges path.dash{stroke-dasharray:5 4;stroke:rgba(183,156,255,.55)}
+  .edges .lbl-bg{fill:#0b1120;stroke:rgba(255,255,255,.08)}
+  .edges .lbl{fill:#93a4c4;font:500 9.6px "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.02em}
+
+  .l4{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:12px}
+  .card{padding:18px 20px;border:1px solid var(--line-soft);border-radius:16px;
+    background:linear-gradient(165deg,rgba(255,255,255,.045),rgba(255,255,255,.012))}
+  .card h3{margin:0 0 10px;font-size:14px;font-weight:640}
+  .card p{margin:0 0 10px;font-size:12px;line-height:1.7;color:var(--muted)}
+  pre{margin:0;font:500 11px/1.75 "SF Mono",ui-monospace,Menlo,monospace;color:#cfe0ff;
+    background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:12px;padding:14px 16px;overflow:auto}
+  pre .k{color:#f5c66b} pre .c{color:#6b7d9c} pre .s{color:#86efac}
+  table{width:100%;border-collapse:collapse;font-size:11.8px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line-soft);color:var(--muted)}
+  th{font:600 9.5px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+  td b{color:#dbe6fb;font-weight:600}
+
+  footer{margin-top:42px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+    color:var(--dim);font-size:11px;border-top:1px solid var(--line-soft);padding-top:16px}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+
+  @media (max-width:900px){
+    .wrap{padding:36px 18px 60px}
+    h1{font-size:25px}
+    .diagram{overflow-x:auto}
+    .diagram .canvas{min-width:980px;position:relative}
+    .l4{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">C4 Model · busagent v0.6 · 2026-11-23</div>
+  <h1>业务 Agent：交错循环 + 写闸门</h1>
+  <p class="lead">
+    从外到内：<b>C1 谁在用</b> → <b>C2 容器（会话层 + 工作流层）</b> → <b>C3 两层组件</b> → <b>L4 代码级顺序</b>。
+    外层决定「这条消息属于哪个 workflow」，内层决定「下一步做什么」，闸门决定「能不能写」，
+    收尾由 <b>GoalVerifier</b> 按合同验；通用流程先过 <b>WAIT_PLAN_APPROVAL</b>。
+    琥珀色线是<b>写路径</b>，其余是读/控制流。
+  </p>
+
+  <div class="legend">
+    <div class="item"><i class="sw person"></i>人</div>
+    <div class="item"><i class="sw system"></i>外部系统</div>
+    <div class="item"><i class="sw container"></i>容器（可独立部署/替换）</div>
+    <div class="item"><i class="sw component"></i>组件（容器内模块）</div>
+    <div class="item"><i class="sw data"></i>数据表</div>
+  </div>
+
+  <!-- ================= C1 ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">C1</span><h2>系统上下文</h2>
+      <span class="sub">谁能触发它、它依赖谁</span>
+    </div>
+    <p class="level-note">一个业务 Agent 只对外暴露三件事：接问题、接审批、调业务系统。模型只是它调用的一个外部服务。</p>
+
+    <div class="diagram" style="height:480px" data-edges='[
+      {"f":"user","t":"agent","l":"提问 / 批准 / 驳回 / 反馈"},
+      {"f":"agent","t":"llm","l":"decide(messages, tools)"},
+      {"f":"agent","t":"erp","l":"业务工具（读 / 写）","k":"write"},
+      {"f":"agent","t":"audit","l":"steps · approvals · events"}
+    ]'>
+      <div class="grid"></div>
+      <div class="canvas">
+        <div class="node person" data-id="user" style="--x:14%;--y:36%">
+          <div class="kind">PERSON</div>
+          <div class="name">业务用户</div>
+          <div class="tech">clerk / supervisor</div>
+          <div class="duty">发起任务；在写操作前批准或驳回</div>
+        </div>
+
+        <div class="node system primary" data-id="agent" style="--x:50%;--y:52%;--w:250px">
+          <div class="badge">SYSTEM</div>
+          <div class="kind">SOFTWARE SYSTEM</div>
+          <div class="name">业务 Agent</div>
+          <div class="tech">interleaved loop + gate</div>
+          <div class="duty">每轮决定下一步；所有写副作用必须过闸</div>
+        </div>
+
+        <div class="node system" data-id="llm" style="--x:86%;--y:24%">
+          <div class="kind">EXTERNAL</div>
+          <div class="name">LLM 服务</div>
+          <div class="tech">OpenAI 兼容端点</div>
+          <div class="duty">只负责提议；不知道批准与幂等</div>
+        </div>
+
+        <div class="node system" data-id="erp" style="--x:86%;--y:72%">
+          <div class="kind">EXTERNAL</div>
+          <div class="name">业务后端</div>
+          <div class="tech">订单 / 库存 / 发货</div>
+          <div class="duty">真实副作用的落点；本 demo 用 SQLite 替身</div>
+        </div>
+
+        <div class="node data" data-id="audit" style="--x:14%;--y:80%">
+          <div class="kind">DATA</div>
+          <div class="name">审计与证据（内部）</div>
+          <div class="tech">steps / approvals / events</div>
+          <div class="duty">谁批的、批了什么、做过几次</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= C2 ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">C2</span><h2>容器</h2>
+      <span class="sub">会话层选目标，工作流层跑循环，闸门管副作用</span>
+    </div>
+    <p class="level-note"><b>SessionLoop</b> 是外层：消息进 session，返回一个动作（open / advance / status / ask）。<b>AgentLoop</b> 是内层：只对一个 workflow 负责。两层之间只有 <b>Runtime</b> 这一个入口。</p>
+
+    <div class="diagram" style="height:800px" data-edges='[
+      {"f":"user","t":"cli","l":"命令 / 审批","k":"dash"},
+      {"f":"cli","t":"session","l":"一条消息"},
+      {"f":"session","t":"flowreg","l":"get_flow","k":"flow"},
+      {"f":"session","t":"runtime","l":"open / advance","k":"flow"},
+      {"f":"runtime","t":"loop","l":"run(wf)"},
+      {"f":"loop","t":"model","l":"decide()"},
+      {"f":"model","t":"llm","l":"/chat"},
+      {"f":"loop","t":"gate","l":"dispatch","k":"flow"},
+      {"f":"loop","t":"verifier","l":"verify_goal","k":"flow"},
+      {"f":"verifier","t":"rtstore","l":"contract / inputs"},
+      {"f":"gate","t":"tools","l":"validate + execute"},
+      {"f":"gate","t":"rtstore","l":"digest · idem","k":"write"},
+      {"f":"runtime","t":"rtstore","l":"approve / send","k":"dash"},
+      {"f":"tools","t":"bizstore","l":"业务 SQL","k":"write"}
+    ]'>
+      <div class="grid"></div>
+      <div class="canvas">
+        <div class="node person" data-id="user" style="--x:10%;--y:8%;--w:170px">
+          <div class="kind">PERSON</div>
+          <div class="name">业务用户</div>
+          <div class="tech">终端 / Web / IM</div>
+        </div>
+
+        <div class="node container" data-id="cli" style="--x:10%;--y:26%;--w:170px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">CLI / Chat</div>
+          <div class="tech">cli.py</div>
+          <div class="duty">chat · ask · approve · trace</div>
+        </div>
+
+        <div class="node container" data-id="flowreg" style="--x:31%;--y:7%;--w:200px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">FlowRegistry</div>
+          <div class="tech">flows.py · 模板 + covers</div>
+          <div class="duty">已知流程：输入、合同、能力覆盖</div>
+        </div>
+
+        <div class="node container primary" data-id="session" style="--x:31%;--y:26%;--w:200px">
+          <div class="badge">NEW</div>
+          <div class="kind">CONTAINER</div>
+          <div class="name">SessionLoop</div>
+          <div class="tech">session.py</div>
+          <div class="duty">一条消息 → 一个动作；不分类话题</div>
+        </div>
+
+        <div class="node container" data-id="runtime" style="--x:31%;--y:50%;--w:190px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">Runtime</div>
+          <div class="tech">runtime.py</div>
+          <div class="duty">start / send / approve / reject</div>
+        </div>
+
+        <div class="node container primary" data-id="loop" style="--x:53%;--y:34%">
+          <div class="badge">CORE</div>
+          <div class="kind">CONTAINER</div>
+          <div class="name">AgentLoop</div>
+          <div class="tech">loop.py</div>
+          <div class="duty">每轮一次决策；预算；挂起/恢复</div>
+        </div>
+
+        <div class="node container" data-id="model" style="--x:78%;--y:22%;--w:190px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">ModelAdapter</div>
+          <div class="tech">models.py</div>
+          <div class="duty">Scripted / OpenAI 兼容 / SSE</div>
+        </div>
+
+        <div class="node system" data-id="llm" style="--x:94%;--y:8%;--w:130px">
+          <div class="kind">EXTERNAL</div>
+          <div class="name">LLM</div>
+          <div class="tech">/v1/chat</div>
+        </div>
+
+        <div class="node container" data-id="verifier" style="--x:78%;--y:43%;--w:190px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">GoalVerifier</div>
+          <div class="tech">goal.py · 五种断言</div>
+          <div class="duty">effect / trace / approval / answer / forbid</div>
+        </div>
+
+        <div class="node container primary" data-id="gate" style="--x:53%;--y:64%">
+          <div class="badge">CORE</div>
+          <div class="kind">CONTAINER</div>
+          <div class="name">Gate</div>
+          <div class="tech">gate.py</div>
+          <div class="duty">来源 → 审批 → 幂等 → 执行</div>
+        </div>
+
+        <div class="node container" data-id="tools" style="--x:79%;--y:64%;--w:196px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">ToolRegistry</div>
+          <div class="tech">tools.py</div>
+          <div class="duty">6 个业务工具 + update_plan</div>
+        </div>
+
+        <div class="node data" data-id="rtstore" style="--x:30%;--y:82%;--w:250px">
+          <div class="kind">RUNTIME SCHEMA</div>
+          <div class="name">Store · 运行时库</div>
+          <div class="tech">sessions / messages / approvals / steps</div>
+        </div>
+
+        <div class="node data" data-id="bizstore" style="--x:80%;--y:82%;--w:230px">
+          <div class="kind">BUSINESS SCHEMA</div>
+          <div class="name">Store · 业务库</div>
+          <div class="tech">customers / orders / shipments</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= C3-A ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">C3-A</span><h2>会话层组件</h2>
+      <span class="sub">一条消息如何落到某个 workflow</span>
+    </div>
+    <p class="level-note">没有话题分类器。模型拿到 session 历史和 workflow 列表，返回五个动作之一；动作写进会话日志，选错可见、可测。</p>
+
+    <div class="diagram" style="height:540px" data-edges='[
+      {"f":"loop","t":"model","l":"decide(history, workflows)","k":"flow"},
+      {"f":"loop","t":"handlers","l":"execute(action)"},
+      {"f":"handlers","t":"runtime","l":"open / advance / status","k":"flow"},
+      {"f":"loop","t":"smsg","l":"append"},
+      {"f":"handlers","t":"wfs","l":"create / query"}
+    ]'>
+      <div class="grid"></div>
+      <div class="canvas">
+        <div class="node component primary" data-id="loop" style="--x:20%;--y:28%;--w:210px">
+          <div class="badge">NEW</div>
+          <div class="kind">COMPONENT</div>
+          <div class="name">SessionLoop</div>
+          <div class="duty">handle(text)：追加消息 → 问模型 → 执行动作</div>
+        </div>
+
+        <div class="node component" data-id="model" style="--x:52%;--y:14%;--w:220px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">SessionModel</div>
+          <div class="duty">Scripted / Heuristic / 未来真模型</div>
+        </div>
+
+        <div class="node component" data-id="handlers" style="--x:52%;--y:44%;--w:220px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">Action Handlers</div>
+          <div class="duty">reply / open / advance / status / ask</div>
+        </div>
+
+        <div class="node container" data-id="runtime" style="--x:84%;--y:28%;--w:180px">
+          <div class="kind">CONTAINER</div>
+          <div class="name">Runtime</div>
+          <div class="duty">workflow 的唯一入口</div>
+        </div>
+
+        <div class="node data" data-id="smsg" style="--x:20%;--y:76%;--w:230px">
+          <div class="kind">DATA</div>
+          <div class="name">session_messages</div>
+          <div class="duty">role / content / action / wf</div>
+        </div>
+
+        <div class="node data" data-id="wfs" style="--x:55%;--y:76%;--w:230px">
+          <div class="kind">DATA</div>
+          <div class="name">workflows</div>
+          <div class="duty">session_id · state · goal</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= C3 ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">C3-B</span><h2>工作流层组件</h2>
+      <span class="sub">对一个 workflow：循环怎么转，闸门怎么判</span>
+    </div>
+    <p class="level-note">左边是控制流：决策 → 路由 → 挂起/恢复。右边是副作用：五道检查串行，任何一道不过就返回，不进入执行。检查顺序是刻意的：先合法，再有出处，最后才谈批准。</p>
+
+    <div class="diagram" style="height:940px" data-edges='[
+      {"f":"turn","t":"decide"},
+      {"f":"decide","t":"route","l":"tool_calls"},
+      {"f":"route","t":"suspend","l":"需审批 / 超时","k":"dash"},
+      {"f":"route","t":"validate","l":"dispatch","k":"flow"},
+      {"f":"validate","t":"ground"},
+      {"f":"ground","t":"perm"},
+      {"f":"perm","t":"approve"},
+      {"f":"approve","t":"idem"},
+      {"f":"idem","t":"exec"},
+      {"f":"exec","t":"store","l":"写效果","k":"write"},
+      {"f":"suspend","t":"approve","l":"WAIT_APPROVAL","k":"dash"},
+      {"f":"reconcile","t":"store","l":"只读对账","k":"dash"}
+    ]'>
+      <div class="grid"></div>
+      <div class="canvas">
+        <div class="panel" style="left:3%;top:2%;width:46%;height:86%"><span class="ph">LOOP · 控制流</span></div>
+        <div class="panel" style="left:51%;top:2%;width:46%;height:86%"><span class="ph">GATE · 副作用</span></div>
+
+        <div class="node component" data-id="turn" style="--x:24%;--y:12%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">TurnController</div>
+          <div class="duty">轮次 / 调用 / 耗时三档预算</div>
+        </div>
+        <div class="node component" data-id="decide" style="--x:24%;--y:29%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">DecideStep</div>
+          <div class="duty">model.decide(messages, tools)</div>
+        </div>
+        <div class="node component" data-id="route" style="--x:24%;--y:46%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">DispatchRouter</div>
+          <div class="duty">逐个 tool_call 交给 Gate</div>
+        </div>
+        <div class="node component" data-id="suspend" style="--x:24%;--y:63%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">SuspensionManager</div>
+          <div class="duty">pending / WAIT_APPROVAL / UNKNOWN</div>
+        </div>
+        <div class="node component" data-id="reconcile" style="--x:24%;--y:79%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">Reconciler</div>
+          <div class="duty">超时后只查不重提</div>
+        </div>
+
+        <div class="node component" data-id="validate" style="--x:72%;--y:10%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">ContractValidator</div>
+          <div class="duty">工具 / 必填 / 类型</div>
+        </div>
+        <div class="node component" data-id="ground" style="--x:72%;--y:24%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">GroundingCheck</div>
+          <div class="duty">参数必须出现在已记录结果里</div>
+        </div>
+        <div class="node component" data-id="perm" style="--x:72%;--y:38%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">PermissionCheck</div>
+          <div class="duty">角色读权限；写靠批准</div>
+        </div>
+        <div class="node component" data-id="approve" style="--x:72%;--y:52%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">ApprovalBinding</div>
+          <div class="duty">digest(tool + args)，改参即失效</div>
+        </div>
+        <div class="node component" data-id="idem" style="--x:72%;--y:66%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">IdempotencyKey</div>
+          <div class="duty">wf + tool + args → 同一逻辑操作</div>
+        </div>
+        <div class="node component" data-id="exec" style="--x:72%;--y:80%;--w:200px">
+          <div class="kind">COMPONENT</div>
+          <div class="name">Executor</div>
+          <div class="duty">调用工具；超时转 UNKNOWN</div>
+        </div>
+
+        <div class="node data" data-id="store" style="--x:50%;--y:94%;--w:400px">
+          <div class="kind">DATA</div>
+          <div class="name">SQLite · approvals / shipments / steps</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STATE ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">STATE</span><h2>工作流状态机</h2>
+      <span class="sub">所有迁移集中校验，不散落在各处</span>
+    </div>
+    <p class="level-note">已知流程从 <b>NEEDS_INPUT</b> 补必填；通用流程先停在 <b>WAIT_PLAN_APPROVAL</b>，批准计划后派生合同再进 RUNNING。写操作停在 <b>WAIT_APPROVAL</b>，超时停在 <b>UNKNOWN</b>，收尾必须过 <b>verify_goal</b>。</p>
+
+    <div class="diagram" style="height:620px" data-edges='[
+      {"f":"new","t":"running","l":"输入齐全"},
+      {"f":"new","t":"plan","l":"通用流程","k":"flow"},
+      {"f":"plan","t":"running","l":"批准计划"},
+      {"f":"plan","t":"terminal","k":"dash"},
+      {"f":"needs","t":"running","l":"answer_questions / 缺信息往返"},
+      {"f":"running","t":"wait","l":"写操作","k":"flow"},
+      {"f":"wait","t":"running","l":"approve / reject"},
+      {"f":"running","t":"unknown","l":"提交超时","k":"write"},
+      {"f":"unknown","t":"running","l":"对账可见"},
+      {"f":"running","t":"terminal","l":"verify 通过 / 越权 / 超预算","k":"flow"},
+      {"f":"unknown","t":"terminal","l":"长期未知","k":"dash"},
+      {"f":"wait","t":"terminal","l":"超时未批 → NEEDS_REVIEW","k":"dash"}
+    ]'>
+      <div class="grid"></div>
+      <div class="canvas">
+        <div class="node component" data-id="new" style="--x:9%;--y:58%;--w:150px">
+          <div class="kind">STATE</div><div class="name">NEW</div>
+          <div class="duty">已创建，尚未选路</div>
+        </div>
+        <div class="node component" data-id="plan" style="--x:9%;--y:14%;--w:230px">
+          <div class="kind">STATE</div><div class="name">WAIT_PLAN_APPROVAL</div>
+          <div class="duty">计划待批；驳回 → DENIED</div>
+        </div>
+        <div class="node component" data-id="needs" style="--x:30%;--y:16%;--w:185px">
+          <div class="kind">STATE</div><div class="name">NEEDS_INPUT</div>
+          <div class="duty">必填缺失；questions 落库</div>
+        </div>
+        <div class="node component primary" data-id="running" style="--x:30%;--y:52%;--w:185px">
+          <div class="kind">STATE</div><div class="name">RUNNING</div>
+          <div class="duty">loop 推进；decide → gate</div>
+        </div>
+        <div class="node component" data-id="wait" style="--x:54%;--y:30%;--w:190px">
+          <div class="kind">STATE</div><div class="name">WAIT_APPROVAL</div>
+          <div class="duty">写操作等人批；digest 绑定</div>
+        </div>
+        <div class="node component" data-id="unknown" style="--x:54%;--y:74%;--w:190px">
+          <div class="kind">STATE</div><div class="name">UNKNOWN</div>
+          <div class="duty">提交超时；只对账不重提</div>
+        </div>
+        <div class="node data" data-id="terminal" style="--x:82%;--y:52%;--w:230px">
+          <div class="kind">TERMINAL</div><div class="name">四个终态</div>
+          <div class="duty">DONE · DENIED · FAILED · NEEDS_REVIEW</div>
+        </div>
+      </div>
+    </div>
+    <p class="level-note" style="margin-top:12px">终态含义：<b>DONE</b> 验收通过；<b>DENIED</b> 越权；<b>FAILED</b> 预算耗尽；<b>NEEDS_REVIEW</b> 验收连续 3 次失败或长期未知。</p>
+  </section>
+
+  <!-- ================= L4 ================= -->
+  <section class="level">
+    <div class="level-head">
+      <span class="tag">L4</span><h2>代码级</h2>
+      <span class="sub">外层一个动作，内层五道检查</span>
+    </div>
+
+    <div class="l4">
+      <div class="card">
+        <h3>外层：一条消息的五个出口</h3>
+        <p>动作是模型返回值，不是分类器结论。每个动作都会写进 <span class="mono">session_messages.action</span>。</p>
+        <pre><span class="k">action</span> = model.decide(session_history, workflows)
+
+<span class="k">match</span> action.kind:
+    <span class="s">"open"</span>:    runtime.start(action.text, session=session)
+    <span class="s">"advance"</span>: runtime.send(action.wf, action.text)
+    <span class="s">"status"</span>:  store.workflow(action.wf)
+    <span class="s">"ask"</span>:     <span class="k">return</span> action.text          <span class="c"># 人回答，不猜</span>
+    <span class="s">"reply"</span>:   <span class="k">return</span> action.text</pre>
+      </div>
+      <div class="card">
+        <h3>内层：写路径五道检查</h3>
+<p>任何一道返回非 <span class="mono">ok</span>，执行都不会发生。顺序是刻意的：<b>先合法，再有出处，最后才谈批准。</b></p>
+        <pre><span class="k">def</span> dispatch(wf, call, results):
+    spec = validate(call)                    <span class="c"># 1 契约</span>
+    check_grounding(spec, call.args, results) <span class="c"># 2 来源</span>
+    <span class="k">if</span> <span class="s">"read"</span> <span class="k">not in</span> roles[actor]: <span class="k">return</span> denied
+    <span class="k">if</span> spec.is_write:
+        bound = digest(spec, call.args)      <span class="c"># 3 摘要</span>
+        <span class="k">if not</span> is_approved(wf, bound): <span class="k">return</span> wait_approval
+    <span class="k">try</span>:
+        <span class="k">return</span> execute(spec, args, idem_key(...))  <span class="c"># 4 幂等 5 执行</span>
+    <span class="k">except</span> CommitTimeout:
+        <span class="k">return</span> UNKNOWN                    <span class="c"># 不猜、不重提</span></pre>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>状态机与数据落点</h3>
+      <table>
+        <tr><th>层</th><th>状态</th><th>含义 / 下一步</th></tr>
+        <tr><td><b>session</b></td><td><b>—（推导）</b></td><td>不存状态字段；活跃 workflow 由 workflows.state 推导</td></tr>
+        <tr><td><b>workflow</b></td><td><b>WAIT_PLAN_APPROVAL</b></td><td>计划待批 → approve_plan 派生合同</td></tr>
+        <tr><td></td><td><b>RUNNING</b></td><td>循环推进中 → 下一轮 decide</td></tr>
+        <tr><td></td><td><b>NEEDS_INPUT</b></td><td>缺必填 → answer_questions 后继续</td></tr>
+        <tr><td></td><td><b>WAIT_APPROVAL</b></td><td>写操作等人 → approve / reject / revise / send</td></tr>
+        <tr><td></td><td><b>UNKNOWN</b></td><td>提交超时 → reconcile，只读</td></tr>
+        <tr><td></td><td><b>DONE</b></td><td>verify_goal 通过</td></tr>
+        <tr><td></td><td><b>NEEDS_REVIEW</b></td><td>验收 3 次失败 → 人看</td></tr>
+        <tr><td></td><td><b>DENIED / FAILED</b></td><td>越权 / 超预算；session 保留记录</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div>busagent v0.6 · session + flow + plan approval + state machine · 36 tests / 7 scenarios</div>
+    <div class="mono">C1 4 · C2 13 · C3-A 6 / C3-B 11 · STATE 6 · L4 2 paths</div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var uid = 0;
+
+  function el(name, attrs) {
+    var node = document.createElementNS(NS, name);
+    for (var key in attrs) node.setAttribute(key, attrs[key]);
+    return node;
+  }
+
+  function draw(diagram) {
+    var canvas = diagram.querySelector(".canvas");
+    var svg = diagram.querySelector("svg.edges");
+    if (!canvas) return;
+    if (!svg) {
+      svg = el("svg", { "class": "edges" });
+      diagram.insertBefore(svg, canvas);
+    }
+    svg.innerHTML = "";
+    var id = "arrow-" + (++uid);
+    var defs = el("defs", {});
+    var marker = el("marker", {
+      id: id, viewBox: "0 0 10 10", refX: "9", refY: "5",
+      markerWidth: "6", markerHeight: "6", orient: "auto-start-reverse"
+    });
+    marker.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: "rgba(150,175,220,.75)" }));
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    var rect = diagram.getBoundingClientRect();
+    var nodes = {};
+    canvas.querySelectorAll(".node").forEach(function (n) { nodes[n.dataset.id] = n; });
+
+    var edges = [];
+    try { edges = JSON.parse(diagram.dataset.edges || "[]"); } catch (e) { edges = []; }
+
+    edges.forEach(function (edge) {
+      var a = nodes[edge.f], b = nodes[edge.t];
+      if (!a || !b) return;
+      var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      var ax = ra.left - rect.left + ra.width / 2;
+      var ay = ra.top - rect.top + ra.height / 2;
+      var bx = rb.left - rect.left + rb.width / 2;
+      var by = rb.top - rect.top + rb.height / 2;
+
+      var x1, y1, x2, y2, mx, my, horizontal;
+      if (Math.abs(bx - ax) >= Math.abs(by - ay) * 0.9) {
+        horizontal = true;
+        var dir = bx >= ax ? 1 : -1;
+        x1 = ax + dir * ra.width / 2;
+        y1 = ay;
+        x2 = bx - dir * rb.width / 2;
+        y2 = by;
+        mx = (x1 + x2) / 2;
+        my = null;
+      } else {
+        horizontal = false;
+        var vdir = by >= ay ? 1 : -1;
+        x1 = ax;
+        y1 = ay + vdir * ra.height / 2;
+        x2 = bx;
+        y2 = by - vdir * rb.height / 2;
+        mx = null;
+        my = (y1 + y2) / 2;
+      }
+
+      var d = horizontal
+        ? "M" + x1 + "," + y1 + " L" + mx + "," + y1 + " L" + mx + "," + y2 + " L" + x2 + "," + y2
+        : "M" + x1 + "," + y1 + " L" + x1 + "," + my + " L" + x2 + "," + my + " L" + x2 + "," + y2;
+
+      var path = el("path", { d: d, "marker-end": "url(#" + id + ")" });
+      if (edge.k === "write") path.setAttribute("class", "write");
+      else if (edge.k === "flow") path.setAttribute("class", "flow");
+      else if (edge.k === "dash") path.setAttribute("class", "dash");
+      svg.appendChild(path);
+
+      if (edge.l) {
+        var lx = horizontal ? mx : (x1 + x2) / 2;
+        var ly = horizontal ? (y1 + y2) / 2 : my;
+        var w = edge.l.length * 6.1 + 14;
+        var bg = el("rect", {
+          x: lx - w / 2, y: ly - 8, width: w, height: 16, rx: 4,
+          "class": "lbl-bg"
+        });
+        var text = el("text", {
+          x: lx, y: ly + 3.2, "text-anchor": "middle", "class": "lbl"
+        });
+        text.textContent = edge.l;
+        svg.appendChild(bg);
+        svg.appendChild(text);
+      }
+    });
+  }
+
+  function drawAll() {
+    document.querySelectorAll(".diagram").forEach(draw);
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(drawAll);
+  }
+  window.addEventListener("load", drawAll);
+  var timer = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(timer);
+    timer = setTimeout(drawAll, 120);
+  });
+  drawAll();
+})();
+</script>
+</body>
+</html>
